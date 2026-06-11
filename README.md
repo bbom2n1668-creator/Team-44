@@ -59,12 +59,6 @@
 node -v
 npm -v
 npx -v
-
-```
-
-
-
-```
 4. [Claude Desktop 다운로드 페이지](https://claude.com/download)에서 프로그램을 다운로드하여 설치하고 로그인합니다.
 
 ### 4. Claude Desktop 설정 파일 수정
