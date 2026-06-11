@@ -20,17 +20,11 @@ export default {
 
       // 1. MCP 프로토콜 초기화 및 기능 조회 단계 (GET / 또는 특정 경로)
       if (request.method === "GET") {
-        // 클라이언트가 MCP 서버에 연결을 시도할 때 (초기 핸드셰이크)
         return new Response(
           JSON.stringify({
-            mcpVersion: "2024-11-05",
-            capabilities: {
-              tools: {} // 이 서버는 'Tools' 기능을 제공함을 선언
-            },
-            serverInfo: {
-              name: "fillet-chamfer-mcp-edu",
-              version: "1.0.0"
-            }
+            mcpVersion: "2026-6-12",
+            capabilities: { tools: {} },
+            serverInfo: { name: "my-first-mcp", version: "1.0.0" }
           }),
           { headers, status: 200 }
         );
@@ -39,6 +33,22 @@ export default {
       // 2. 핵심 로직 처리 단계 (POST 요청)
       if (request.method === "POST") {
         const body: any = await request.json();
+
+        // 2-0. MCP 핸드셰이크 초기화
+        if (body.method === "initialize") {
+          return new Response(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: body.id,
+              result: {
+                protocolVersion: "2026-6-12",
+                capabilities: { tools: {} },
+                serverInfo: { name: "my-first-mcp", version: "1.0.0" }
+              }
+            }),
+            { headers, status: 200 }
+          );
+        }
 
         // 2-a. 클라이언트가 사용 가능한 도구(Tools) 목록을 요청할 때
         if (body.method === "tools/list") {
@@ -49,14 +59,28 @@ export default {
               result: {
                 tools: [
                   {
-                    name: "get_mechanical_guideline",
-                    description: "기계가공(Fillet 또는 Chamfer)에 대한 안전 가이드라인 규칙을 조회합니다.",
+                    name: "get_fillet_r",
+                    description: "감성 키워드를 Fillet R값(mm)으로 변환합니다.",
                     inputSchema: {
                       type: "object",
                       properties: {
                         keyword: {
                           type: "string",
-                          description: "조회할 키워드 (예: fillet, chamfer)"
+                          description: "감성 형용사 (예: '부드러운', '단단한')"
+                        }
+                      },
+                      required: ["keyword"]
+                    }
+                  },
+                  {
+                    name: "get_chamfer_c",
+                    description: "감성 키워드를 Chamfer C값(mm)으로 변환합니다.",
+                    inputSchema: {
+                      type: "object",
+                      properties: {
+                        keyword: {
+                          type: "string",
+                          description: "감성 형용사 (예: '예리한', '강인한')"
                         }
                       },
                       required: ["keyword"]
@@ -71,32 +95,39 @@ export default {
 
         // 2-b. 클라이언트가 실제로 도구(Tool)를 실행했을 때
         if (body.method === "tools/call") {
-          const { keyword } = body.params.arguments || {};
-          const lowerKeyword = keyword ? keyword.toLowerCase() : "";
+          const { name, arguments: args } = body.params;
+          const keyword = args?.keyword?.trim();
 
-          // JSON 데이터에서 학생이 수정한 키워드가 있는지 매칭
-          const matchedData = keywords[lowerKeyword as keyof typeof keywords];
+          // 툴 이름에 따라 fillet 또는 chamfer 테이블 선택
+          const table = name === "get_fillet_r"
+            ? keywords.fillet
+            : name === "get_chamfer_c"
+            ? keywords.chamfer
+            : null;
 
-          let responseText = "";
-          if (matchedData) {
-            responseText = `[${matchedData.description}]\n${matchedData.content}`;
-          } else {
-            responseText = `'${keyword}'에 대한 가이드라인을 찾을 수 없습니다. 현재 등록된 키워드: ${Object.keys(keywords).join(", ")}`;
+          if (!table) {
+            return new Response(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                id: body.id,
+                error: { code: -32601, message: `Unknown tool: ${name}` }
+              }),
+              { headers, status: 200 }
+            );
           }
 
-          // MCP 규격에 맞춘 결과 반환
+          const value = table[keyword as keyof typeof table];
+          const text = value !== undefined
+            ? `${value}`
+            : `'${keyword}'를 찾을 수 없습니다. 등록된 키워드: ${Object.keys(table).join(", ")}`;
+
           return new Response(
             JSON.stringify({
               jsonrpc: "2.0",
               id: body.id,
               result: {
-                content: [
-                  {
-                    type: "text",
-                    text: responseText
-                  }
-                ],
-                isError: false
+                content: [{ type: "text", text }],
+                isError: value === undefined
               }
             }),
             { headers, status: 200 }
