@@ -16,7 +16,6 @@ export default {
     }
 
     try {
-      const url = new URL(request.url);
 
       // 1. MCP 프로토콜 초기화 및 기능 조회 단계 (GET / 또는 특정 경로)
       if (request.method === "GET") {
