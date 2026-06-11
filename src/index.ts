@@ -22,12 +22,12 @@ export default {
       if (request.method === "GET") {
         return new Response(
           JSON.stringify({
-            mcpVersion: "2024-11-05",
+            mcpVersion: "2026-6-11",
             capabilities: {
               tools: {} // 본 서버는 도구(Tools) 기능을 탑재했음을 AI에게 선언
             },
             serverInfo: {
-              name: "fillet-chamfer-mcp-edu",
+              name: "my-first-mcp",
               version: "1.0.0"
             }
           }),
